@@ -1,94 +1,32 @@
-import os
-import face_recognition
 import cv2
-import numpy as np
 
-video_capture = cv2.VideoCapture(0)
+# Load the pre-trained face detection model
+faceCascade = cv2.CascadeClassifier('./Face_detection/haarcascade_frontalface_default.xml')
 
-# Create arrays of known face encodings and their names
-known_face_encodings = []
-known_face_names = []
-
-root_dir = os.path.dirname(os.path.abspath(os.path.abspath(__file__)))
-image_dir = os.path.join(root_dir, "images")
-
-# creating encodings for faces from images folder
-for file in os.listdir(image_dir):
-    if file.endswith == "jpeg" or "jpg":
-        input_face_name = file.split('.')[0]
-        input_face = face_recognition.load_image_file(os.path.join(image_dir, file))
-        input_face_encoding = face_recognition.face_encodings(input_face)[0]
-
-        # appending face_names and face encoding
-        known_face_names.append(input_face_name)
-        known_face_encodings.append(input_face_encoding)
-
-# Initialize some variables
-face_locations = []
-face_encodings = []
-face_names = []
-process_this_frame = True
+# Open the video file for reading
+cap = cv2.VideoCapture('./Media/input_face.mp4')
 
 while True:
-    # Grab a single frame of video
-    ret, frame = video_capture.read()
-
-    # Resize frame of video to 1/4 size for faster face recognition processing
-    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-
-    # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
-    rgb_small_frame = small_frame[:, :, ::-1]
-
-    # Only process every other frame of video to save time
-    if process_this_frame:
-        # Find all the faces and face encodings in the current frame of video
-        face_locations = face_recognition.face_locations(rgb_small_frame)
-        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-
-        face_names = []
-        for face_encoding in face_encodings:
-            # See if the face is a match for the known face(s)
-            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-            name = "Unknown"
-
-            # # If a match was found in known_face_encodings, just use the first one.
-            # if True in matches:
-            #     first_match_index = matches.index(True)
-            #     name = known_face_names[first_match_index]
-
-            # Or instead, use the known face with the smallest distance to the new face
-            face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
-            best_match_index = np.argmin(face_distances)
-            if matches[best_match_index]:
-                name = known_face_names[best_match_index]
-
-            face_names.append(name)
-    process_this_frame = not process_this_frame
-
-
-    # Display the results
-    for (top, right, bottom, left), name in zip(face_locations, face_names):
-        # Scale back up face locations since the frame we detected in was scaled to 1/4 size
-        top *= 4
-        right *= 4
-        bottom *= 4
-        left *= 4
-
-        # Draw a box around the face
-        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
-
-        # Draw a label with a name below the face
-        cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
-        font = cv2.FONT_HERSHEY_DUPLEX
-        cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
-
-    # Display the resulting image
-    cv2.imshow('Video', frame)
-
-    # Hit 'q' on the keyboard to quit!
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    ret, frame = cap.read()
+    
+    if not ret:
         break
 
-# Release handle to the webcam
-video_capture.release()
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Performing face detection
+    faces = faceCascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30), flags=cv2.CASCADE_SCALE_IMAGE)
+
+    # Drawing rectangles around the detected faces
+    for (x, y, w, h) in faces:
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+    # Displaying the frame with rectangles drawn around faces
+    cv2.imshow('Video', frame)
+    # Exit when the 'q' key is pressed
+    k = cv2.waitKey(30) & 0xff
+    if k == 27:
+        break        
+
+cap.release()
 cv2.destroyAllWindows()
